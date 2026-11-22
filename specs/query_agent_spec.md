@@ -62,6 +62,19 @@ The NL→SQL system prompt is built fresh each call from three runtime inputs:
    names present in `schema.json`; if a referenced column is absent from the
    loaded schema, that example is skipped rather than misleading the model.
 
+   **No eval leakage (hard rule):** the few-shot set and the evaluation set
+   (`evals/` / `specs/eval_spec.md`, owned by Session A) **must be disjoint**.
+   The eval cases are seeded from the stakeholder questions in
+   `docs/BUSINESS_CONTEXT.md`, so few-shots must **not** reuse those questions or
+   their near-paraphrases, and must not hardcode an expected numeric answer.
+   Few-shots teach the *metric shape* (status filters, time windows, per-account
+   dedup, refund netting, USD columns) using **different** questions than any
+   evaluated one — e.g. demonstrate the revenue pattern on a *different* year or
+   region than the eval asks about. A metric pattern is taught at most once; the
+   eval then tests that the agent generalizes it to the held-out question.
+   Rationale: evals must measure generalization, not few-shot recall. The
+   few_shots file should carry a header comment stating this constraint.
+
 The prompt also states the dialect (DuckDB), the single view name, and the
 guardrails (§4) as hard rules. No business constants (FX, list prices) appear in
 the prompt — those are baked into the cleaned columns per metrics_spec §0/§7.
