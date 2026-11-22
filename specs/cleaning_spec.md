@@ -73,7 +73,7 @@ trim/whitespace fix (1023 plan values alone carried stray spaces).
 |-----------|---------|
 | Starter | `starter`, `start`, `tier 1` |
 | Pro | `pro`, `professional`, `tier 2` |
-| Enterprise | `enterprise`, `tier 3` |
+| Enterprise | `enterprise`, `ent`, `tier 3` |
 
 **R03 — status:**
 | canonical | matches |
