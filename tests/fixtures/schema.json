@@ -1,0 +1,31 @@
+{
+  "table": "invoices",
+  "row_count": 10,
+  "columns": [
+    {"name": "invoice_id", "type": "VARCHAR", "nullable": false, "description": "Unique invoice key (one row per invoice after dedup).", "allowed_values": null, "rules_applied": ["R01"]},
+    {"name": "account_id", "type": "VARCHAR", "nullable": false, "description": "Customer account id; an account may have many invoices.", "allowed_values": null, "rules_applied": []},
+    {"name": "account_name", "type": "VARCHAR", "nullable": true, "description": "Customer account display name.", "allowed_values": null, "rules_applied": []},
+    {"name": "region", "type": "VARCHAR", "nullable": true, "description": "Sales region.", "allowed_values": ["NA", "EMEA", "APAC", "LATAM"], "rules_applied": []},
+    {"name": "industry", "type": "VARCHAR", "nullable": true, "description": "Account industry; may be null.", "allowed_values": null, "rules_applied": []},
+    {"name": "plan", "type": "VARCHAR", "nullable": false, "description": "Subscription plan, normalized.", "allowed_values": ["Starter", "Pro", "Enterprise"], "rules_applied": ["R02"]},
+    {"name": "billing_cycle", "type": "VARCHAR", "nullable": false, "description": "Billing cycle, normalized.", "allowed_values": ["monthly", "annual"], "rules_applied": ["R02"]},
+    {"name": "seats", "type": "BIGINT", "nullable": false, "description": "Licensed seats on the invoice.", "allowed_values": null, "rules_applied": []},
+    {"name": "currency", "type": "VARCHAR", "nullable": false, "description": "Original invoice currency before FX normalization.", "allowed_values": ["USD", "EUR", "GBP"], "rules_applied": []},
+    {"name": "amount_usd", "type": "DOUBLE", "nullable": false, "description": "As-billed invoice amount, FX-normalized to USD, signed (refunds negative).", "allowed_values": null, "rules_applied": ["R03"]},
+    {"name": "discount_pct", "type": "DOUBLE", "nullable": false, "description": "Percentage discount applied (0-100).", "allowed_values": null, "rules_applied": []},
+    {"name": "status", "type": "VARCHAR", "nullable": false, "description": "Canonical payment status. Only paid/refunded count as revenue.", "allowed_values": ["paid", "pending", "failed", "refunded", "void"], "rules_applied": ["R02"]},
+    {"name": "payment_method", "type": "VARCHAR", "nullable": true, "description": "Payment method; may be null.", "allowed_values": ["credit_card", "ACH", "wire", "invoice"], "rules_applied": ["R02"]},
+    {"name": "signup_date", "type": "DATE", "nullable": true, "description": "When the account first signed up.", "allowed_values": null, "rules_applied": ["R04"]},
+    {"name": "invoice_date", "type": "DATE", "nullable": true, "description": "When this invoice was issued; drives time windows.", "allowed_values": null, "rules_applied": ["R04"]},
+    {"name": "churned", "type": "BOOLEAN", "nullable": false, "description": "Whether the account has since churned (cumulative snapshot).", "allowed_values": null, "rules_applied": ["R02"]},
+    {"name": "csat_score", "type": "DOUBLE", "nullable": true, "description": "Latest CSAT 1-5; may be null.", "allowed_values": null, "rules_applied": []},
+    {"name": "support_tickets", "type": "BIGINT", "nullable": false, "description": "Support tickets opened by the account.", "allowed_values": null, "rules_applied": []},
+    {"name": "mrr_usd", "type": "DOUBLE", "nullable": false, "description": "Per-invoice monthly recurring revenue in USD = list_price[plan]*seats*(1-discount_pct/100).", "allowed_values": null, "rules_applied": ["R03"]}
+  ],
+  "rules": [
+    {"id": "R01", "description": "De-duplicate: keep one record per invoice_id (near-duplicate resolution).", "action": "dropped", "rows_affected": 0},
+    {"id": "R02", "description": "Normalize categorical values (status, plan, billing_cycle, payment_method, churned) to canonical forms.", "action": "modified", "rows_affected": 0},
+    {"id": "R03", "description": "FX-normalize amounts to USD and derive mrr_usd.", "action": "modified", "rows_affected": 0},
+    {"id": "R04", "description": "Parse mixed date formats to ISO DATE.", "action": "modified", "rows_affected": 0}
+  ]
+}

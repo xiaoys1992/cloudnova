@@ -1,0 +1,26 @@
+paths:
+  raw_csv: data/raw/cloudnova_invoices.csv
+  clean_dir: data/clean
+
+# Owned by session A. Business constants (FX rates, as-of date, category maps...) go here.
+pipeline:
+  as_of_date: "2026-12-31"   # fixed reporting horizon (not "today"); upper sanity bound for dates
+  # Reference FX "used to generate the data" (BUSINESS_CONTEXT).
+  # Applied as: amount_usd = amount_local / fx_rates_to_usd[currency]  (see cleaning_spec R08).
+  fx_rates_to_usd:
+    USD: 1.0
+    EUR: 1.08
+    GBP: 1.27
+  # List price per seat per month, USD. Used only to derive mrr_usd (R09).
+  list_price_usd:
+    Starter: 49
+    Pro: 99
+    Enterprise: 299
+  annual_billed_months: 10   # annual invoices bill 10 months (reference; amount is parsed as-billed)
+
+# Owned by session B.
+agent:
+  model: claude-sonnet-5-5
+  max_rows: 1000
+  query_timeout_s: 10
+  few_shots_path: src/agent/few_shots.yaml
