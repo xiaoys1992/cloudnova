@@ -1,0 +1,15 @@
+paths:
+  raw_csv: data/raw/cloudnova_invoices.csv
+  clean_dir: data/clean
+
+# Owned by session A. Business constants (FX rates, as-of date, category maps...) go here.
+pipeline:
+  as_of_date: null   # fixed reporting date from BUSINESS_CONTEXT; never "today"
+  fx_rates_to_usd: {}
+
+# Owned by session B.
+agent:
+  model: claude-sonnet-5-5
+  max_rows: 1000
+  query_timeout_s: 10
+  few_shots_path: src/agent/few_shots.yaml

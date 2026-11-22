@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Bash(python:*)",
+      "Bash(pip:*)",
+      "Bash(git:*)",
+      "Bash(pytest:*)",
+      "Bash(.venv/Scripts/python:*)",
+      "PowerShell(python:*)",
+      "PowerShell(git:*)",
+      "PowerShell(pip:*)"
+    ]
+  }
+}
