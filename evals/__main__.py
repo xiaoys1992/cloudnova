@@ -56,7 +56,7 @@ def within_tol(expected, got, tol) -> bool:
 
 def fmt(x):
     if x is None:
-        return "—"
+        return "-"
     if isinstance(x, float):
         return f"{x:,.4f}" if abs(x) < 10 else f"{x:,.2f}"
     return str(x)
@@ -64,7 +64,7 @@ def fmt(x):
 
 def truncate(s, n):
     s = " ".join(str(s).split())
-    return s if len(s) <= n else s[: n - 1] + "…"
+    return s if len(s) <= n else s[: n - 1] + "..."
 
 
 def main() -> int:
