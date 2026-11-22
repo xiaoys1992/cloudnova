@@ -43,6 +43,9 @@ re-implements them from scratch, it does not import them.
   `plan = 'Enterprise'`; `churn_rate = mean(churned)` as a fraction 0–1.
 - **Expected shape:** scalar fraction in [0,1].
 - **Tolerance:** absolute **0.01** (1 percentage point).
+- **`answer_key: churn_rate`** — metrics_spec §4's churn query also returns
+  `accounts` / `churned_accounts` columns, so a plain "first numeric" would read a
+  count. This case names the answer column; the harness reads it from the row.
 
 ## E04 — Total refunds given back (Q3) · revenue
 
@@ -74,7 +77,9 @@ re-implements them from scratch, it does not import them.
 
 - `cases.yaml` holds, per case: `id`, `question`, `expected` (number or null),
   `tolerance` (`{type: relative|absolute, value: n}`), `xfail` (bool), `metric`.
-- Compare: extract the **first numeric value** from `result["rows"]`; PASS if within
-  tolerance; FAIL otherwise. `xfail` cases are reported XFAIL regardless and never
-  fail the build. Unexpected FAIL on a non-xfail case → non-zero exit.
+- Compare: if the case sets `answer_key` and rows are dicts, read the first row's
+  value whose column name contains `answer_key`; otherwise extract the **first
+  numeric value** from `result["rows"]`. PASS if within tolerance; FAIL otherwise.
+  `xfail` cases are reported XFAIL regardless and never fail the build. Unexpected
+  FAIL on a non-xfail case → non-zero exit.
 - Missing agent (`src.agent`) or missing `cleaned.parquet` → clear message, clean exit.

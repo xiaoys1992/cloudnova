@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES_PATH = Path(__file__).resolve().parent / "cases.yaml"
@@ -44,6 +45,18 @@ def first_number(obj):
     return None
 
 
+def value_by_key(rows, answer_key):
+    """First row value whose column name contains answer_key (case-insensitive)."""
+    key = answer_key.lower()
+    if isinstance(rows, (list, tuple)):
+        for row in rows:
+            if isinstance(row, dict):
+                for col, val in row.items():
+                    if key in str(col).lower():
+                        return first_number(val)
+    return None
+
+
 def within_tol(expected, got, tol) -> bool:
     if expected is None or got is None:
         return False
@@ -68,6 +81,7 @@ def truncate(s, n):
 
 
 def main() -> int:
+    load_dotenv(ROOT / ".env")  # mirror app/__main__.py so ANTHROPIC_API_KEY loads
     if not CASES_PATH.exists():
         print(f"ERROR: cases file not found: {CASES_PATH}\n"
               f"Generate it from evals/oracle.py first.", file=sys.stderr)
@@ -97,7 +111,11 @@ def main() -> int:
         got, sql, err = None, "", None
         try:
             res = ask(q)
-            got = first_number(res.get("rows"))
+            rows = res.get("rows")
+            answer_key = c.get("answer_key")
+            got = value_by_key(rows, answer_key) if answer_key else None
+            if got is None:
+                got = first_number(rows)
             sql = res.get("sql", "") or ""
         except Exception as e:  # noqa: BLE001 - per-case failure, keep going
             err = str(e)

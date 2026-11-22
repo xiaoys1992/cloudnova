@@ -27,7 +27,8 @@ META = {
             "tolerance": {"type": "relative", "value": 0.01}, "xfail": False},
     "E03": {"metric": "churn",
             "question": "What is the churn rate among Enterprise accounts?",
-            "tolerance": {"type": "absolute", "value": 0.01}, "xfail": False},
+            "tolerance": {"type": "absolute", "value": 0.01}, "xfail": False,
+            "answer_key": "churn_rate"},
     "E04": {"metric": "revenue",
             "question": "How much have we given back in refunds?",
             "tolerance": {"type": "absolute", "value": 0.01}, "xfail": False},
@@ -63,6 +64,8 @@ def main() -> int:
             f"    tolerance: {{type: {meta['tolerance']['type']}, value: {meta['tolerance']['value']}}}",
             f"    xfail: {str(meta['xfail']).lower()}",
         ]
+        if meta.get("answer_key"):
+            lines.append(f"    answer_key: {meta['answer_key']}")
     OUT.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"Wrote {OUT} ({len(META)} cases). Expected: {expected}")
     return 0

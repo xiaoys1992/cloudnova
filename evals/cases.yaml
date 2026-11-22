@@ -19,6 +19,7 @@ cases:
     expected: 0.2192
     tolerance: {type: absolute, value: 0.01}
     xfail: false
+    answer_key: churn_rate
   - id: E04
     metric: revenue
     question: "How much have we given back in refunds?"
