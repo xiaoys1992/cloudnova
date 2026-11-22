@@ -159,13 +159,13 @@ mrr_usd = list_price_usd[plan] × seats × (1 − discount_pct / 100.0)
 ```
 
 `list_price_usd` from config (`Starter 49, Pro 99, Enterprise 299`). Computed
-after plan (R02), seats (R15) and discount are clean. Not nullable (plan/seats
+after plan (R02), seats (R12) and discount are clean. Not nullable (plan/seats
 are non-null). The 10-month annual factor is **not** applied here — MRR is
 monthly; it only affects what is *billed* (already captured in `amount_usd`).
 
 ---
 
-## 8. Numeric casts (R15)
+## 8. Numeric casts (R12)
 
 `seats`, `support_tickets` → BIGINT; `csat_score`, `discount_pct` → DOUBLE
 (`csat` NULL if blank). Profile: all seats ≥ 1, discount ∈ {0,10,15,20,25}
@@ -178,24 +178,28 @@ monthly; it only affects what is *billed* (already captured in `amount_usd`).
 
 ## 9. Drop vs flag summary
 
-| ID | description | action |
-|----|-------------|--------|
-| R01 | trim / collapse whitespace, strip disguised nulls → NULL | modified |
-| R02 | normalize `plan` → Starter/Pro/Enterprise | modified |
-| R03 | normalize `status` → canonical 5 | modified |
-| R04 | normalize `billing_cycle` → monthly/annual | modified |
-| R05 | normalize `payment_method`; blank → NULL | modified |
-| R06 | `churned` → BOOLEAN | modified |
-| R07 | parse `amount` string → signed numeric (local) | modified |
-| R08 | FX convert local → `amount_usd` (**divide** by rate) | modified |
-| R09 | derive `mrr_usd` = list×seats×(1−disc/100) | added |
-| R10 | parse `signup_date` / `invoice_date`; ambiguous = month-first | modified |
-| R11 | fix `_at_`→`@`; invalid email → NULL | modified / flagged |
-| R12 | cast numerics (seats, support_tickets, csat, discount) | modified |
-| R13 | drop exact-duplicate rows | dropped |
-| R14 | resolve `invoice_id` collisions (status priority) | dropped |
-| R16 | date sanity flag (future / pre-2015 / invoice<signup) | flagged |
-| R17 | flag null `invoice_date` (excluded from time windows) | flagged |
+Rules are applied in the order listed (dependency-correct: numeric casts R12
+precede the money derivations R08/R09 that consume them; dedup R13/R14 and flags
+R16/R17 run last, over fully-normalized rows).
+
+| order | ID | description | action |
+|-------|----|-------------|--------|
+| 1 | R01 | trim / collapse whitespace, strip disguised nulls → NULL | modified |
+| 2 | R02 | normalize `plan` → Starter/Pro/Enterprise | modified |
+| 3 | R03 | normalize `status` → canonical 5 | modified |
+| 4 | R04 | normalize `billing_cycle` → monthly/annual | modified |
+| 5 | R05 | normalize `payment_method`; blank → NULL | modified |
+| 6 | R06 | `churned` → BOOLEAN | modified |
+| 7 | R12 | cast numerics (seats, support_tickets, csat, discount) | modified |
+| 8 | R07 | parse `amount` string → signed numeric (local) | modified |
+| 9 | R08 | FX convert local → `amount_usd` (**divide** by rate) | modified |
+| 10 | R09 | derive `mrr_usd` = list×seats×(1−disc/100) | added |
+| 11 | R10 | parse `signup_date` / `invoice_date`; ambiguous = month-first | modified |
+| 12 | R11 | fix `_at_`→`@`; invalid email → NULL | modified / flagged |
+| 13 | R13 | drop exact-duplicate rows | dropped |
+| 14 | R14 | resolve `invoice_id` collisions (status priority) | dropped |
+| 15 | R16 | date sanity flag (future / pre-2015 / invoice<signup) | flagged |
+| 16 | R17 | flag null `invoice_date` (excluded from time windows) | flagged |
 
 Only R13/R14 remove rows. Everything else repairs or flags — no silent data loss.
 
