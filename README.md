@@ -178,12 +178,12 @@ We would rather be honest about where this breaks than hide it.
 - **Answer-trust assessment:** map the columns a generated query touches → the cleaning
   rule IDs that shaped them → the relevant caveats, and attach a confidence note to every
   answer (e.g. "nets refunds via R08 FX-divide; 78 rows carry date-sanity flags").
-- **Resolve the FX-direction discrepancy** (flagged to Session A; see `docs/decisions.md` #1).
-  `metrics_spec §7` and the "EUR→USD 1.08" wording imply `amount_usd = local × rate`, while the
-  pipeline/`cleaning_spec` use `local ÷ rate`. A list-price cross-check (EUR 52,920 ÷ 1.08 = $49,000)
-  supports *divide*, but the specs must be made consistent **and** backed by an eval that recomputes
-  FX from the raw `amount`/`currency` — today the oracle reads the pipeline's `amount_usd`, so no case
-  guards the direction (it's a ~10.5% / ~$2.9M swing on 2024 revenue if wrong).
+- **Guard the FX direction with an eval.** The divide convention (`amount_usd = local ÷ rate`) is now
+  confirmed (Session A review — recovers exact list-price integers across currencies/plans and satisfies
+  `amount_usd = mrr_usd × 10` for annual; see `docs/decisions.md` #1–#2, `metrics_spec §7`). What's still
+  missing is a case that recomputes FX from the raw `amount`/`currency`: today the oracle reads the
+  pipeline's `amount_usd`, so a silent direction flip (a ~10.5% / ~$2.9M swing on 2024 revenue) would not
+  fail any eval. Reconciling the "EUR→USD 1.08" wording in BUSINESS_CONTEXT is a smaller follow-up.
 - **Automated few-shot ↔ eval overlap check** so eval questions can't leak into the
   agent's few-shot examples (no training-on-the-test).
 - **More eval cases** (region exposure, top-accounts + CSAT flag, gross vs. net revenue)

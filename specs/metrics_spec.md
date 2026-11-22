@@ -254,26 +254,26 @@ If the delivered `schema.json` lacks the derived columns, the agent computes
 them inline from raw columns, applying the §0 constants from `config.yaml`:
 
 ```sql
-amount_usd ≈ raw_amount_numeric * fx_to_usd[currency]      -- sign preserved
+amount_usd ≈ raw_amount_numeric / fx_to_usd[currency]      -- DIVIDE; sign preserved
 mrr_usd    ≈ list_price_usd[plan] * seats * (1 - discount_pct/100.0)
 ```
 
 This is a degraded path (couples the agent to constants) and should trigger a
 spec reconciliation with Session A rather than shipping silently.
 
-> **OPEN DISCREPANCY — FX direction (flagged to Session A 2026-11-22, unresolved):**
-> the formula above multiplies (`raw_amount * fx_to_usd[currency]`), matching the
-> literal "EUR→USD 1.08" phrasing in `docs/BUSINESS_CONTEXT.md`. The authoritative
-> pipeline (`specs/cleaning_spec.md` R08 + `config.yaml`) instead **divides**
-> (`amount_usd = raw_amount / fx_to_usd[currency]`). Evidence favors **division**:
-> a real invoice of EUR 52,920 ÷ 1.08 = $49,000 = 49 × 100 seats × 10 annual
-> months — a clean list-price figure — i.e. the synthetic data was generated as
-> `USD × rate`, so dividing recovers the original USD. If so, this fallback and the
-> BUSINESS_CONTEXT wording are the inconsistent pieces and should change to divide.
-> Not resolved here (left for Session A to confirm). Note the fallback is never
-> exercised today — the pipeline always emits `amount_usd` — and all evals pass
-> because the oracle reads that column rather than recomputing FX, so no eval case
-> currently guards the direction.
+> **FX direction — RESOLVED: divide (Session A review, 2026-11-22; see
+> `docs/decisions.md` #1–#2).** `amount_usd = raw_amount / fx_to_usd[currency]`.
+> The rate values `EUR=1.08, GBP=1.27` are the *generation* rates: the synthetic
+> data was produced as `local = USD × rate`, so dividing recovers the original USD.
+> Confirmed by three independent checks — list-price integers recovered across
+> currencies/plans (EUR 52,920 ÷ 1.08 = $49,000 = 49×100×10; GBP 31,432 ÷ 1.27 =
+> $24,750 = 99×25×10); the recovered figures match real price points; and annual
+> consistency `amount_usd = mrr_usd × 10` holds only under divide (MRR is
+> FX-independent). The "EUR→USD 1.08" arrow wording in `docs/BUSINESS_CONTEXT.md`
+> reads like a multiplier but is the inverse here — noted, not yet reworded.
+> **Still open:** no eval recomputes FX from raw `amount`/`currency`, so no case
+> guards the direction (the oracle reads the pipeline's `amount_usd`). Impact if
+> ever flipped: ~+10.5% on 2024 revenue/refund/exposure; MRR/churn unaffected.
 
 ---
 
