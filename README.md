@@ -178,6 +178,13 @@ We would rather be honest about where this breaks than hide it.
 - **Answer-trust assessment:** map the columns a generated query touches → the cleaning
   rule IDs that shaped them → the relevant caveats, and attach a confidence note to every
   answer (e.g. "nets refunds via R08 FX-divide; 78 rows carry date-sanity flags").
+- **A caveat-mapping evaluation function.** A post-answer step that inspects the LLM's
+  output and, for each result column, traces it back to the metric definitions
+  (`metrics_spec.md`) and cleaned-data assumptions (`cleaning_spec.md`) it rests on — then
+  surfaces those caveats alongside the number so a reader can see *why* a figure is what it
+  is (e.g. "this revenue column assumes FX-divide (R08) and nets refunds per metrics_spec
+  §1"). Makes the assumptions auditable per-answer rather than only in the specs. _(Left for
+  next time.)_
 - **Guard the FX direction with an eval.** The divide convention (`amount_usd = local ÷ rate`) is now
   confirmed (Session A review — recovers exact list-price integers across currencies/plans and satisfies
   `amount_usd = mrr_usd × 10` for annual; see `docs/decisions.md` #1–#2, `metrics_spec §7`). What's still
