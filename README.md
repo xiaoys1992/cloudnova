@@ -109,6 +109,12 @@ We would rather be honest about where this breaks than hide it.
 - **Answer-trust assessment:** map the columns a generated query touches → the cleaning
   rule IDs that shaped them → the relevant caveats, and attach a confidence note to every
   answer (e.g. "nets refunds via R08 FX-divide; 78 rows carry date-sanity flags").
+- **Resolve the FX-direction discrepancy** (flagged to Session A; see `docs/decisions.md` #1).
+  `metrics_spec §7` and the "EUR→USD 1.08" wording imply `amount_usd = local × rate`, while the
+  pipeline/`cleaning_spec` use `local ÷ rate`. A list-price cross-check (EUR 52,920 ÷ 1.08 = $49,000)
+  supports *divide*, but the specs must be made consistent **and** backed by an eval that recomputes
+  FX from the raw `amount`/`currency` — today the oracle reads the pipeline's `amount_usd`, so no case
+  guards the direction (it's a ~10.5% / ~$2.9M swing on 2024 revenue if wrong).
 - **Automated few-shot ↔ eval overlap check** so eval questions can't leak into the
   agent's few-shot examples (no training-on-the-test).
 - **More eval cases** (region exposure, top-accounts + CSAT flag, gross vs. net revenue)
@@ -118,4 +124,21 @@ We would rather be honest about where this breaks than hide it.
 
 ## Eval results
 
-_Owned by Session B — to be filled in with the latest `python -m evals` output._
+Latest `python -m evals` (against an independent oracle; cleaned table = 5,000 rows):
+
+| Case | Question | Expected | Got | Status |
+|------|----------|----------|-----|--------|
+| E01 | Total recognized revenue USD, paid invoices, 2024 | 27,823,962.37 | 27,823,962.37 | ✅ PASS |
+| E02 | Region with the highest average MRR per account | 4,955.16 | 4,955.16 | ✅ PASS |
+| E03 | Churn rate among Enterprise accounts | 0.2192 | 0.2192 | ✅ PASS |
+| E04 | Refunds given back (USD) | 8,168,785.85 | 8,168,785.85 | ✅ PASS |
+| E05 | Monthly churn rate in 2024 | — | — | ⚠️ XFAIL |
+
+**4 PASS · 0 FAIL · 1 XFAIL.**
+
+- **E05 (XFAIL — expected):** the data carries only a cumulative `churned` boolean with **no churn
+  date**, so a *monthly* churn rate is undefined. The agent still returns a plausible-but-meaningless
+  number; the harness marks it XFAIL rather than letting it masquerade as a pass. This is the one
+  case we deliberately expect to fail — see `specs/eval_spec.md`.
+- No *unexpected* failures. Note the scored money cases pass under the pipeline's FX convention; the
+  open FX-direction discrepancy (above / `docs/decisions.md` #1) is not yet guarded by an eval.

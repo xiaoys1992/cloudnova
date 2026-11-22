@@ -261,6 +261,20 @@ mrr_usd    ≈ list_price_usd[plan] * seats * (1 - discount_pct/100.0)
 This is a degraded path (couples the agent to constants) and should trigger a
 spec reconciliation with Session A rather than shipping silently.
 
+> **OPEN DISCREPANCY — FX direction (flagged to Session A 2026-11-22, unresolved):**
+> the formula above multiplies (`raw_amount * fx_to_usd[currency]`), matching the
+> literal "EUR→USD 1.08" phrasing in `docs/BUSINESS_CONTEXT.md`. The authoritative
+> pipeline (`specs/cleaning_spec.md` R08 + `config.yaml`) instead **divides**
+> (`amount_usd = raw_amount / fx_to_usd[currency]`). Evidence favors **division**:
+> a real invoice of EUR 52,920 ÷ 1.08 = $49,000 = 49 × 100 seats × 10 annual
+> months — a clean list-price figure — i.e. the synthetic data was generated as
+> `USD × rate`, so dividing recovers the original USD. If so, this fallback and the
+> BUSINESS_CONTEXT wording are the inconsistent pieces and should change to divide.
+> Not resolved here (left for Session A to confirm). Note the fallback is never
+> exercised today — the pipeline always emits `amount_usd` — and all evals pass
+> because the oracle reads that column rather than recomputing FX, so no eval case
+> currently guards the direction.
+
 ---
 
 ## 8. Cross-cutting rules
