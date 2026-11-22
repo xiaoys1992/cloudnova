@@ -1,0 +1,73 @@
+# Few-shot examples for NL -> DuckDB SQL generation.
+#
+# NO EVAL LEAKAGE (see specs/query_agent_spec.md s2): these questions and their
+# SQL must stay DISJOINT from the evaluation set (evals/ / specs/eval_spec.md),
+# which is seeded from the stakeholder questions in docs/BUSINESS_CONTEXT.md.
+# These examples teach the *metric shapes* (status filters, time windows,
+# per-account dedup via latest invoice, churn at account level, refund sign)
+# using DIFFERENT questions and specifics than any evaluated one, so evals
+# measure generalization, not recall. No expected numeric answers are encoded.
+#
+# `requires:` lists the columns an example uses; the loader skips an example if
+# any required column is absent from the runtime schema.json.
+
+- question: "How many invoices are in the dataset?"
+  requires: []
+  sql: |
+    SELECT COUNT(*) AS invoice_count
+    FROM invoices;
+
+- question: "What was recognized revenue in USD during 2023?"
+  requires: [amount_usd, status, invoice_date]
+  sql: |
+    SELECT SUM(amount_usd) AS recognized_revenue_usd
+    FROM invoices
+    WHERE status IN ('paid', 'refunded')
+      AND invoice_date >= DATE '2023-01-01'
+      AND invoice_date <  DATE '2024-01-01';
+
+- question: "What is the total current MRR in USD for each plan?"
+  requires: [account_id, invoice_date, invoice_id, plan, churned, mrr_usd]
+  sql: |
+    WITH ranked AS (
+      SELECT *,
+             ROW_NUMBER() OVER (
+               PARTITION BY account_id
+               ORDER BY invoice_date DESC, invoice_id DESC
+             ) AS rn
+      FROM invoices
+    ),
+    account_current AS (
+      SELECT plan,
+             CASE WHEN churned THEN 0 ELSE mrr_usd END AS current_mrr_usd
+      FROM ranked
+      WHERE rn = 1
+    )
+    SELECT plan,
+           SUM(current_mrr_usd) AS total_current_mrr_usd
+    FROM account_current
+    GROUP BY plan
+    ORDER BY total_current_mrr_usd DESC;
+
+- question: "What is the churn rate for each region?"
+  requires: [account_id, invoice_date, invoice_id, region, churned]
+  sql: |
+    WITH ranked AS (
+      SELECT *,
+             ROW_NUMBER() OVER (
+               PARTITION BY account_id
+               ORDER BY invoice_date DESC, invoice_id DESC
+             ) AS rn
+      FROM invoices
+    ),
+    account_current AS (
+      SELECT region, churned
+      FROM ranked
+      WHERE rn = 1
+    )
+    SELECT region,
+           AVG(CASE WHEN churned THEN 1.0 ELSE 0.0 END) AS churn_rate,
+           COUNT(*) AS accounts
+    FROM account_current
+    GROUP BY region
+    ORDER BY churn_rate DESC;
