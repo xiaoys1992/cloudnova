@@ -30,6 +30,69 @@ Other entry points: `python -m app clean` (build the table only),
 **Data flow:** raw CSV → cleaning pipeline (rules R01–R17) → `data/clean/cleaned.parquet`
 + `schema.json` → DuckDB view `invoices` → NL→SQL agent → answer + SQL.
 
+## Architecture
+
+Full write-up in [`docs/architecture.md`](./docs/architecture.md); the same diagram:
+
+```mermaid
+flowchart TD
+    CSV[("data/raw/cloudnova_invoices.csv<br/>~5k dirty rows")]
+
+    subgraph pipe["src/pipeline — Session A"]
+        CLEAN["clean.py — rules R01..R17<br/>dedup, normalize categories/dates,<br/>FX to USD, derive mrr_usd"]
+    end
+
+    subgraph clean["data/clean — the only contract"]
+        PARQ[("cleaned.parquet<br/>view: invoices")]
+        SCHEMA[["schema.json<br/>columns, types, allowed_values, rules"]]
+        REPORT["cleaning_report.md<br/>rows in/out, per-rule counts"]
+    end
+
+    DUCK{{"DuckDB — register parquet as view invoices"}}
+
+    MSPEC["specs/metrics_spec.md"]
+    FEWSHOT["src/agent/few_shots.yaml"]
+
+    subgraph agent["src/agent — Session B"]
+        PROMPT["prompt assembly<br/>schema.json + metrics_spec + few_shots"]
+        SQLGEN["NL to SQL — LLM call"]
+        GUARD["guardrails<br/>SELECT/WITH only, row cap, timeout"]
+        EXEC["execute query<br/>retry once on SQL error"]
+        ANSWER["answer — 2nd LLM call<br/>one paragraph quoting the numbers"]
+    end
+
+    CLI["app CLI<br/>python -m app clean | ask | demo"]
+
+    subgraph eval["evals"]
+        ORACLE["oracle.py<br/>independent pandas, no src imports"]
+        HARNESS["harness — python -m evals<br/>compare vs tolerance"]
+        RESULT{"PASS / FAIL / XFAIL"}
+    end
+
+    CSV --> CLEAN
+    CLEAN --> PARQ
+    CLEAN --> SCHEMA
+    CLEAN --> REPORT
+
+    PARQ --> DUCK
+    SCHEMA --> PROMPT
+    MSPEC --> PROMPT
+    FEWSHOT --> PROMPT
+    PROMPT --> SQLGEN --> GUARD --> EXEC --> ANSWER
+    GUARD -. "reject: not read-only" .-> ANSWER
+    DUCK --> EXEC
+
+    CLI -- "clean" --> CLEAN
+    CLI -- "ask / demo -> agent.ask()" --> PROMPT
+    ANSWER --> CLI
+
+    PARQ --> ORACLE
+    ORACLE --> HARNESS
+    HARNESS -- "agent.ask() per case" --> PROMPT
+    ANSWER --> HARNESS
+    HARNESS --> RESULT
+```
+
 ## The specs (business logic lives here, not in code)
 
 The build is **spec-first**: every spec was written and committed *before* the code
@@ -60,6 +123,12 @@ rules, stack, git discipline, and the one interface between components).
   [`docs/decisions.md`](./docs/decisions.md). Prompt history and per-session logs are
   in [`docs/prompts.md`](./docs/prompts.md) and [`docs/sessions/`](./docs/sessions/).
   A generated profile of the raw data is in [`docs/data_profile.md`](./docs/data_profile.md).
+- **No train/test leakage:** the agent's four few-shot examples
+  ([`src/agent/few_shots.yaml`](./src/agent/few_shots.yaml)) and the five eval questions
+  ([`specs/eval_spec.md`](./specs/eval_spec.md)) were **checked manually for overlap** —
+  they share no question or near-paraphrase (few-shots use 2023 revenue, total MRR *by
+  plan*, churn *by region*; evals use 2024 revenue, avg MRR per account, Enterprise
+  churn, refunds, monthly churn), so evals measure generalization, not recall.
 
 ## Key design decisions & trade-offs
 
